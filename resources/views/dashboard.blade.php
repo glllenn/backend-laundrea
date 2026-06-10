@@ -1266,7 +1266,7 @@
 
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;">
                     <div>
-                        <h1 style="font-size:19px;font-weight:700;">Selamat datang 👋</h1>
+                        <h1 style="font-size:19px;font-weight:700;">Selamat datang</h1>
                         <p style="font-size:12px;color:var(--clr-muted);margin-top:4px;">Ringkasan aktivitas laundry Anda hari ini.</p>
                     </div>
                     <button onclick="doRefresh()" class="btn btn-secondary btn-sm">
@@ -4955,7 +4955,7 @@ fetchTrx();
 
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;">
                     <div>
-                        <h1 style="font-size:19px;font-weight:700;">Selamat datang 👋</h1>
+                        <h1 style="font-size:19px;font-weight:700;">Selamat datang</h1>
                         <p style="font-size:12px;color:var(--clr-muted);margin-top:4px;">Ringkasan aktivitas laundry Anda hari ini.</p>
                     </div>
                     <button onclick="doRefresh()" class="btn btn-secondary btn-sm">

@@ -77,67 +77,79 @@ class TransactionController extends Controller
     }
 
     // 3. Membuat Transaksi Baru (Kasir Web)
-    public function store(Request $request)
-    {
-        $request->validate([
-            'customer_id' => 'required|exists:customers,id',
-            'service_id' => 'required|exists:services,id',
-            'weight' => 'required|numeric|min:0.1', 
-            'payment_method' => 'required|in:cash,transfer',
-            'payment_proof' => 'required_if:payment_method,transfer|image|mimes:jpeg,png,jpg|max:5120',
-            'clothes_photo' => 'nullable|image|mimes:jpeg,png,jpg|max:5120' 
-        ]);
+public function store(Request $request)
+{
+    $request->validate([
+        'customer_id' => 'required|exists:customers,id',
+        'payment_method' => 'required|in:cash,transfer',
+        'payment_proof' => $request->payment_method === 'transfer' ? 'required|image|max:5120' : 'nullable|image|max:5120', // Wajib jika transfer
+        'clothes_photo' => 'nullable|image|max:5120',
+        'items' => 'required|json', // Menerima data item berupa string JSON array
+    ]);
 
-        $service = Service::findOrFail($request->service_id);
-        $total_price = $service->price * $request->weight;
+    $items = json_decode($request->items, true);
 
-        $payment_proof_path = null;
-        $payment_status = 'pending';
-        $paid_at = null;
-
-        if ($request->payment_method === 'transfer' && $request->hasFile('payment_proof')) {
-            $payment_proof_path = $request->file('payment_proof')->store('payment_proofs', 'public');
-            $payment_status = 'paid';
-            $paid_at = now();
-        } elseif ($request->payment_method === 'cash') {
-            $payment_status = 'paid';
-            $paid_at = now();
-        }
-
-        // Proses Upload Foto Baju Masuk
-        $clothes_photo_path = null;
-        if ($request->hasFile('clothes_photo')) {
-            $clothes_photo_path = $request->file('clothes_photo')->store('clothes_photos', 'public');
-        }
-
-        $lastTransaction = Transaction::orderBy('id', 'desc')->first();
-        $nextId = $lastTransaction ? $lastTransaction->id + 1 : 1;
-        $invoice_code = 'LND-' . str_pad($nextId, 3, '0', STR_PAD_LEFT);
-
-        $transaction = Transaction::create([
-            'invoice_code' => $invoice_code,
-            'admin_id' => $request->user()->id,
-            'customer_id' => $request->customer_id,
-            'service_id' => $request->service_id,
-            'weight' => $request->weight,
-            'total_price' => $total_price,
-            'status' => 'antrian',
-            'payment_method' => $request->payment_method,
-            'payment_status' => $payment_status,
-            'payment_proof' => $payment_proof_path,
-            'clothes_photo' => $clothes_photo_path,
-            'paid_at' => $paid_at
-        ]);
-
-        // Format URL Foto sebelum dikembalikan
-        $transaction = $this->formatPhotoUrls($transaction);
-
-        return response()->json([
-            'success' => true, 
-            'message' => 'Transaksi berhasil dibuat', 
-            'data' => $transaction
-        ], 201);
+    if (empty($items)) {
+        return response()->json(['success' => false, 'message' => 'Minimal harus memilih 1 layanan.'], 422);
     }
+
+    // Validasi isi item anti-minus di tingkat server
+    foreach ($items as $item) {
+        if (!isset($item['qty']) || floatval($item['qty']) <= 0) {
+            return response()->json(['success' => false, 'message' => 'Kuantitas layanan tidak boleh kosong atau bernilai minus.'], 422);
+        }
+    }
+
+    // Gunakan DB::transaction untuk mengamankan proses insert ganda
+    $transaction = \DB::transaction(function () use ($request, $items) {
+        // 1. Hitung total keseluruhan berdasarkan subtotal item
+        $totalPrice = 0;
+        foreach ($items as $item) {
+            $service = \App\Models\Service::findOrFail($item['service_id']);
+            $totalPrice += $service->price * floatval($item['qty']);
+        }
+
+        // 2. Buat data induk transaksi
+        $trx = new \App\Models\Transaction();
+        $trx->customer_id = $request->customer_id;
+        $trx->payment_method = $request->payment_method;
+        $trx->total_price = $totalPrice;
+        $trx->status = 'antrian';
+        $trx->payment_status = $request->payment_method === 'transfer' ? 'paid' : 'unpaid';
+
+        if ($request->hasFile('clothes_photo')) {
+            $trx->clothes_photo = $request->file('clothes_photo')->store('transactions', 'public');
+        }
+        if ($request->hasFile('payment_proof')) {
+            $trx->payment_proof = $request->file('payment_proof')->store('payments', 'public');
+        }
+        $trx->save();
+
+        // 3. Simpan item-item layanan ke tabel transaction_items
+        foreach ($items as $item) {
+            $service = \App\Models\Service::findOrFail($item['service_id']);
+            $trx->items()->create([
+                'service_id' => $item['service_id'],
+                'qty' => $item['qty'],
+                'price' => $service->price,
+                'subtotal' => $service->price * floatval($item['qty']),
+            ]);
+        }   
+
+        return $trx;
+    });
+
+    return response()->json(['success' => true, 'message' => 'Transaksi berhasil dibuat', 'data' => $transaction]);
+}
+
+// Tambahkan rute fungsi destroy untuk menangani penghapusan transaksi per ID
+public function destroy($id)
+{
+    $transaction = \App\Models\Transaction::findOrFail($id);
+    $transaction->delete(); // Otomatis menghapus item jika cascade onDelete di-set
+
+    return response()->json(['success' => true, 'message' => 'Transaksi berhasil dihapus.']);
+}
 
     // 4. Update Status Cucian & Lampiran Foto (Web Admin)
     public function updateStatus(Request $request, $id)

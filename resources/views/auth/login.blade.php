@@ -39,16 +39,39 @@
 
         /* Efek bayangan halus premium untuk kartu login melayang */
         .autumn-shadow {
-            box-shadow: 0 10px 30px -5px rgba(224, 123, 57, 0.04), 
-                        0 20px 40px -10px rgba(30, 26, 23, 0.02);
+            box-shadow: 0 20px 40px -15px rgba(224, 123, 57, 0.08), 
+                        0 30px 60px -20px rgba(30, 26, 23, 0.04);
         }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4 antialiased selection:bg-[#E07B39] selection:text-white">
+<body class="relative flex items-center justify-center min-h-screen p-4 antialiased selection:bg-[#E07B39] selection:text-white overflow-hidden">
 
-    <div class="w-full max-w-[440px] view-sec animate-[vFade_0.25s_ease-out]">
+    <div class="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        <div class="absolute -top-40 -left-40 w-96 h-96 bg-[#E07B39]/10 rounded-full blur-3xl"></div>
+        <div class="absolute -bottom-40 -right-40 w-[500px] h-[500px] bg-[#E07B39]/5 rounded-full blur-3xl"></div>
         
-        <div class="bg-white border border-[#EDE9E3] rounded-2xl autumn-shadow p-8 sm:p-10 flex flex-col items-center">
+        <div class="absolute top-[10%] left-[5%] w-6 h-6 bg-[#E07B39]/10 rounded-full"></div>
+        <div class="absolute top-[25%] left-[12%] w-3 h-3 bg-[#E07B39]/20 rounded-full"></div>
+        <div class="absolute top-[8%] left-[22%] w-4 h-4 bg-[#E07B39]/15 rounded-full"></div>
+        
+        <div class="absolute bottom-[15%] left-[8%] w-8 h-8 bg-[#E07B39]/10 rounded-full"></div>
+        <div class="absolute bottom-[30%] left-[4%] w-4 h-4 bg-[#E07B39]/15 rounded-full"></div>
+        <div class="absolute bottom-[8%] left-[18%] w-5 h-5 bg-[#E07B39]/20 rounded-full"></div>
+
+        <div class="absolute top-[15%] right-[7%] w-8 h-8 bg-[#E07B39]/10 rounded-full"></div>
+        <div class="absolute top-[5%] right-[15%] w-4 h-4 bg-[#E07B39]/20 rounded-full"></div>
+        <div class="absolute top-[28%] right-[4%] w-5 h-5 bg-[#E07B39]/15 rounded-full"></div>
+
+        <div class="absolute bottom-[12%] right-[10%] w-6 h-6 bg-[#E07B39]/15 rounded-full"></div>
+        <div class="absolute bottom-[28%] right-[15%] w-3 h-3 bg-[#E07B39]/25 rounded-full"></div>
+        <div class="absolute bottom-[5%] right-[5%] w-7 h-7 bg-[#E07B39]/10 rounded-full"></div>
+        
+        <div class="absolute top-[45%] left-[15%] w-4 h-4 bg-[#E07B39]/10 rounded-full hidden md:block"></div>
+        <div class="absolute bottom-[40%] right-[12%] w-5 h-5 bg-[#E07B39]/10 rounded-full hidden md:block"></div>
+    </div>
+    <div class="relative w-full max-w-[440px] view-sec animate-[vFade_0.25s_ease-out] z-10">
+        
+        <div class="bg-white/95 backdrop-blur-md border border-[#EDE9E3] rounded-2xl autumn-shadow p-8 sm:p-10 flex flex-col items-center">
             
             <div class="mb-5">
                 <img 
@@ -151,7 +174,6 @@
 
             if (togglePasswordBtn && passwordInput) {
                 togglePasswordBtn.addEventListener('click', function () {
-                    // Cek state tipe input password saat ini
                     const isPassword = passwordInput.getAttribute('type') === 'password';
                     
                     if (isPassword) {
@@ -176,7 +198,6 @@
 
             if (loginForm) {
                 loginForm.addEventListener('submit', async function(event) {
-                    // Blokir form dari refresh halaman otomatis browser
                     event.preventDefault();
 
                     // --- INITIALIZE UI LOADING FEEDBACK ---
@@ -185,12 +206,10 @@
                     btnSpinner.classList.remove('hidden');
                     btnSubmit.classList.add('opacity-85', 'cursor-not-allowed');
 
-                    // Ekstraksi value dari input form field
                     const email = document.getElementById('email').value;
                     const passwordValue = document.getElementById('password').value;
 
                     try {
-                        // Tembak REST API backend Laravel Sanctum
                         const response = await fetch('/api/login', {
                             method: 'POST',
                             headers: { 
@@ -205,14 +224,10 @@
 
                         const res = await response.json();
 
-                        // Jika status login terverifikasi true oleh backend
                         if (res.success) {
-                            
-                            // Amankan Token Kunci & Data Profil User ke Browser Cache Lokal
                             localStorage.setItem('token', res.access_token);
                             localStorage.setItem('user', JSON.stringify(res.data));
                             
-                            // Pop up alert sukses estetik sewarna autumn
                             Swal.fire({
                                 icon: 'success',
                                 title: 'Autentikasi Berhasil',
@@ -223,17 +238,14 @@
                                 color: '#1E1A17',
                                 iconColor: '#16A34A'
                             }).then(function() {
-                                // Lempar masuk menuju dashboard admin utama
                                 window.location.href = '/dashboard';
                             });
 
                         } else {
-                            // Jika server menolak (Kredensial atau role salah)
                             throw new Error(res.message || 'Kredensial salah atau tidak cocok.');
                         }
                         
                     } catch (error) {
-                        // Pop up error terintegrasi
                         Swal.fire({
                             icon: 'error',
                             title: 'Gagal Masuk',
